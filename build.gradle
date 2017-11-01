@@ -1,0 +1,33 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.1'
+    }
+}
+
+
+apply plugin: 'java'
+apply plugin: 'org.junit.platform.gradle.plugin'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'commons-io:commons-io:2.5'
+    compile 'commons-cli:commons-cli:1.4'
+    compile 'com.google.guava:guava:23.3-jre'
+    compile 'org.slf4j:slf4j-api:1.7.25'
+
+    runtime 'ch.qos.logback:logback-core:1.2.3'
+    runtime 'ch.qos.logback:logback-classic:1.2.3'
+
+    testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.1'
+    testCompile 'org.mockito:mockito-all:1.10.19'
+    testCompile 'com.google.truth:truth:0.36'
+    testCompile 'com.google.jimfs:jimfs:1.1'
+
+    testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.0.1'
+}
