@@ -58,7 +58,7 @@ public class WorkspaceImpl implements Workspace {
     }
 
     private String substituteRoot(String name, String rootName) {
-        String laterPart = name.substring(1 + rootName.length());
+        String laterPart = name.substring(2 + rootName.length());
         return "//" + rootPaths.get(rootName) + laterPart;
     }
 
@@ -87,7 +87,7 @@ public class WorkspaceImpl implements Workspace {
     public void newCommandTask(String taskName, List<String> dependencies, Runnable action) {
         Preconditions.checkState(!isInSession(),
                 "New tasks must only be create when the workspace is out of session.");
-        Preconditions.checkState(!existsAndNotPlaceholder(taskName),
+        Preconditions.checkArgument(!existsAndNotPlaceholder(taskName),
                 "Task " + resolveName(taskName) + " already exists!");
         dependencies.forEach(this::newPlaceholderTask);
         tasks.put(resolveName(taskName),
@@ -99,7 +99,7 @@ public class WorkspaceImpl implements Workspace {
     public void newFileTask(String taskName, List<String> dependencies, Runnable action) {
         Preconditions.checkState(!isInSession(),
                 "New tasks must only be create when the workspace is out of session.");
-        Preconditions.checkState(!existsAndNotPlaceholder(taskName),
+        Preconditions.checkArgument(!existsAndNotPlaceholder(taskName),
                 "Task " + resolveName(taskName) + " already exists!");
         dependencies.forEach(this::newPlaceholderTask);
         tasks.put(resolveName(taskName),
@@ -239,13 +239,16 @@ public class WorkspaceImpl implements Workspace {
         private FileSystem fileSystem;
 
         public Builder() {
-            rootPaths.put(DEFAULT_ROOT, ".");
+            rootPaths.put(DEFAULT_ROOT, "./");
             loggerFactory = LoggerFactory.getILoggerFactory();
             fileSystem = FileSystems.getDefault();
         }
 
         @Override
         public Builder root(String shortName, String path) {
+            if (!path.endsWith("/")) {
+                throw new IllegalArgumentException("Path must end with a '/'.");
+            }
             rootPaths.put(shortName, path);
             return this;
         }

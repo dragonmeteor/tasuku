@@ -1,17 +1,22 @@
 package com.moekaku.tasuku.impl;
 
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
 import com.moekaku.tasuku.Workspace;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.*;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import java.util.function.Consumer;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -33,9 +38,9 @@ public class WorkspaceImplTest {
     @Test
     public void testResolveName_rootedNames() {
         Workspace workspace = Workspace.builder()
-                .root("ROOT0", "cat")
-                .root("ROOT1", "tiger")
-                .root("ROOT2", "lion")
+                .root("ROOT0", "cat/")
+                .root("ROOT1", "tiger/")
+                .root("ROOT2", "lion/")
                 .build();
 
         assertThat(workspace.resolveName("/ROOT0/test.txt")).isEqualTo("//cat/test.txt");
@@ -46,9 +51,9 @@ public class WorkspaceImplTest {
     @Test
     public void testResolveName_invalidNames() {
         Workspace workspace = Workspace.builder()
-                .root("ROOT0", "cat")
-                .root("ROOT1", "tiger")
-                .root("ROOT2", "lion")
+                .root("ROOT0", "cat/")
+                .root("ROOT1", "tiger/")
+                .root("ROOT2", "lion/")
                 .build();
 
         assertThrows(IllegalArgumentException.class, () -> workspace.resolveName("/ROOT0abc"));
@@ -141,5 +146,120 @@ public class WorkspaceImplTest {
         workspace.run("a");
         verifyNoMoreInteractions(aCommand);
         workspace.endSession();
+    }
+
+    @Test
+    public void testCreateTwoAsksWithTheSameName() {
+        Workspace workspace = Workspace.builder().build();
+        workspace.newCommandTask("a", Collections.emptyList(), Mockito.mock(Runnable.class));
+        assertThrows(IllegalArgumentException.class, () -> {
+            workspace.newCommandTask("a", Collections.emptyList(), Mockito.mock(Runnable.class));
+        });
+    }
+
+    private static void writeTextFile(FileSystem fs, String fileName, Consumer<BufferedWriter> contentProvider) {
+        try {
+            Path path = fs.getPath(fileName);
+            OutputStream stream = Files.newOutputStream(path);
+            BufferedWriter fout = new BufferedWriter(new OutputStreamWriter(stream));
+            contentProvider.accept(fout);
+            fout.close();
+            stream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String readTextFile(FileSystem fs, String fileName) {
+        try {
+            Path path = fs.getPath(fileName);
+            long fileSize = Files.size(path);
+            if (fileSize > Integer.MAX_VALUE) {
+                throw new RuntimeException("file too large to read");
+            }
+            ByteBuffer buffer = ByteBuffer.allocate((int) fileSize);
+            SeekableByteChannel channel = Files.newByteChannel(path, StandardOpenOption.READ);
+            channel.read(buffer);
+            channel.close();
+            buffer.rewind();
+            return new String(buffer.array());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testFileTasks_singleFile() {
+        FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
+        final Workspace workspace = Workspace.builder()
+                .fileSystem(fs)
+                .root("ROOT0", "/")
+                .build();
+        workspace.newFileTask("a.txt", Collections.emptyList(), () -> {
+            writeTextFile(workspace.getFileSystem(), "/a.txt", (BufferedWriter fout) -> {
+                try {
+                    fout.write("Hello, world");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        });
+
+        workspace.startSession();
+        workspace.run("a.txt");
+        workspace.endSession();
+
+        assertThat(Files.exists(fs.getPath("/a.txt"))).isTrue();
+    }
+
+    @Test
+    public void testFileTasks_fileTasks_dependencyDoesNotExists() {
+        FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
+        writeTextFile(fs, "/a.txt", (BufferedWriter fout) -> {
+            try {
+                fout.write("123");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        final Workspace workspace = Workspace.builder()
+                .fileSystem(fs)
+                .root("ROOT0", "/")
+                .build();
+
+        workspace.newFileTask("a.txt", Collections.singletonList("b.txt"), () ->
+                writeTextFile(workspace.getFileSystem(), "/a.txt", (BufferedWriter fout) -> {
+                    try {
+                        fout.write("456");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
+
+        workspace.newFileTask("b.txt", Collections.emptyList(), () ->
+        writeTextFile(workspace.getFileSystem(), "/b.txt", (BufferedWriter fout) -> {
+           try {
+               fout.write("abc");
+           } catch (IOException e) {
+               throw new RuntimeException(e);
+           }
+        }));
+
+        workspace.startSession();
+        workspace.run("a.txt");
+        workspace.endSession();
+
+        assertThat(Files.exists(fs.getPath("/a.txt"))).isTrue();
+        assertThat(Files.exists(fs.getPath("/b.txt"))).isTrue();
+
+        assertThat(readTextFile(fs, "/a.txt")).isEqualTo("456");
+    }
+
+    @Test
+    public void testRoot_mustEndWithSlash() {
+        assertThrows(IllegalArgumentException.class, () -> {
+           Workspace.builder().root("ROOT0", "abc");
+        });
     }
 }
