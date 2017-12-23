@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class WorkspaceImpl implements Workspace {
     private final HashMap<String, String> rootPaths = new HashMap<>();
@@ -179,8 +180,23 @@ public class WorkspaceImpl implements Workspace {
     }
 
     @Override
+    public ILoggerFactory getLoggerFactory() {
+        return loggerFactory;
+    }
+
+    @Override
     public Path getFilePath(String taskName) {
         return fileSystem.getPath(Workspace.getFileName(resolveName(taskName)));
+    }
+
+    @Override
+    public Map<String, String> getRoots() {
+        return new HashMap<>(rootPaths);
+    }
+
+    @Override
+    public Set<String> getTaskNames() {
+        return tasks.keySet();
     }
 
     @Override

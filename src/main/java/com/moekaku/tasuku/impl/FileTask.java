@@ -11,9 +11,9 @@ public class FileTask extends AbstractTask {
     private final Logger logger;
 
     FileTask(WorkspaceImpl workspace,
-                    String name,
-                    List<String> dependencies, Runnable action,
-                    ILoggerFactory loggerFactory) {
+             String name,
+             List<String> dependencies, Runnable action,
+             ILoggerFactory loggerFactory) {
         super(workspace, name, dependencies);
         this.action = action;
         this.logger = loggerFactory.getLogger(getClass().getName());

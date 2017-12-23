@@ -7,6 +7,8 @@ import org.slf4j.ILoggerFactory;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface Workspace {
     String DEFAULT_ROOT = "ROOT0";
@@ -23,7 +25,10 @@ public interface Workspace {
     boolean canRun(String taskName);
     boolean isInSession();
     FileSystem getFileSystem();
+    ILoggerFactory getLoggerFactory();
     Path getFilePath(String taskName);
+    Map<String, String> getRoots();
+    Set<String> getTaskNames();
 
     interface Builder {
         Builder root(String shortName, String path);
