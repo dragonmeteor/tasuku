@@ -1,6 +1,8 @@
 package com.moekaku.tasuku;
 
 import com.google.common.base.Preconditions;
+import com.moekaku.tasuku.impl.FileTask;
+import com.moekaku.tasuku.impl.PlaceholderTask;
 import com.moekaku.tasuku.impl.WorkspaceImpl;
 import org.slf4j.ILoggerFactory;
 
@@ -15,8 +17,8 @@ public interface Workspace {
 
     String resolveName(String name);
     boolean taskExists(String taskName);
-    void newCommandTask(String taskName, List<String> dependencies, Runnable action);
-    void newFileTask(String taskName, List<String> dependencies, Runnable action);
+    Task newCommandTask(String taskName, List<String> dependencies, Runnable action);
+    FileTask newFileTask(String taskName, List<String> dependencies, Runnable action);
     void newPlaceholderTask(String taskName);
     void startSession();
     void endSession();
